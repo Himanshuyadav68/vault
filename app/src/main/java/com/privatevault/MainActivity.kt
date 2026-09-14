@@ -1,5 +1,6 @@
 package com.privatevault
 
+import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import android.view.Gravity
@@ -9,18 +10,157 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import java.security.MessageDigest
 
 class MainActivity : AppCompatActivity() {
 
-    // Temporary secret for this prototype.
-    // We will replace this with secure storage later.
-    private val secret = "1234"
+    private lateinit var securePrefs: android.content.SharedPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        showMailbox()
+        setupSecureStorage()
+
+        if (passwordExists()) {
+            showMailbox()
+        } else {
+            showPasswordSetup()
+        }
+    }
+
+    private fun setupSecureStorage() {
+
+        val masterKey = MasterKey.Builder(this)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        securePrefs = EncryptedSharedPreferences.create(
+            this,
+            "private_vault_secure",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    private fun passwordExists(): Boolean {
+        return securePrefs.contains("password_hash")
+    }
+
+    private fun hashPassword(password: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val bytes = digest.digest(password.toByteArray(Charsets.UTF_8))
+
+        return bytes.joinToString("") {
+            "%02x".format(it)
+        }
+    }
+
+    private fun savePassword(password: String) {
+        securePrefs.edit()
+            .putString("password_hash", hashPassword(password))
+            .apply()
+    }
+
+    private fun verifyPassword(password: String): Boolean {
+
+        val savedHash = securePrefs.getString("password_hash", null)
+            ?: return false
+
+        return hashPassword(password) == savedHash
+    }
+
+    private fun showPasswordSetup() {
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 80, 32, 32)
+            setBackgroundColor(Color.WHITE)
+        }
+
+        val title = TextView(this).apply {
+            text = "🔐 Create Private Vault"
+            textSize = 28f
+            setTextColor(Color.BLACK)
+        }
+
+        val instructions = TextView(this).apply {
+            text = """
+                This is the first time you are opening Private Vault.
+
+                Create a password that will be used to unlock your private vault.
+            """.trimIndent()
+
+            textSize = 16f
+            setTextColor(Color.DKGRAY)
+            setPadding(0, 25, 0, 25)
+        }
+
+        val passwordBox = EditText(this).apply {
+            hint = "Create password"
+            minLines = 1
+        }
+
+        val confirmBox = EditText(this).apply {
+            hint = "Confirm password"
+            minLines = 1
+        }
+
+        val createButton = Button(this).apply {
+            text = "Create Vault"
+
+            setOnClickListener {
+
+                val password = passwordBox.text.toString()
+                val confirmation = confirmBox.text.toString()
+
+                when {
+                    password.isEmpty() -> {
+                        passwordBox.error = "Enter a password"
+                    }
+
+                    password.length < 6 -> {
+                        passwordBox.error = "Password must be at least 6 characters"
+                    }
+
+                    password != confirmation -> {
+                        confirmBox.error = "Passwords do not match"
+                    }
+
+                    else -> {
+                        savePassword(password)
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Vault password created",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        showMailbox()
+                    }
+                }
+            }
+        }
+
+        layout.addView(title)
+        layout.addView(instructions)
+        layout.addView(passwordBox)
+        layout.addView(confirmBox)
+
+        layout.addView(
+            createButton,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 30, 0, 0)
+            }
+        )
+
+        setContentView(layout)
     }
 
     private fun showMailbox() {
@@ -227,7 +367,7 @@ class MainActivity : AppCompatActivity() {
 
                 val enteredText = messageBox.text.toString()
 
-                if (enteredText == secret) {
+                if (verifyPassword(enteredText)) {
                     showVault()
                 } else {
                     messageBox.error = "Message could not be sent"
@@ -297,14 +437,7 @@ class MainActivity : AppCompatActivity() {
         layout.addView(title)
         layout.addView(message)
         layout.addView(placeholder)
-
-        layout.addView(
-            lockButton,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        )
+        layout.addView(lockButton)
 
         setContentView(layout)
     }
