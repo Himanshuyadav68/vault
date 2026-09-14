@@ -5,12 +5,17 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
+
+    // Temporary secret for this prototype.
+    // We will replace this with secure storage later.
+    private val secret = "1234"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,7 +30,6 @@ class MainActivity : AppCompatActivity() {
             setBackgroundColor(Color.rgb(248, 249, 250))
         }
 
-        // Header
         val header = TextView(this).apply {
             text = "✉  Mailbox"
             textSize = 28f
@@ -33,15 +37,8 @@ class MainActivity : AppCompatActivity() {
             setPadding(32, 45, 32, 30)
         }
 
-        root.addView(
-            header,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        )
+        root.addView(header)
 
-        // Inbox label
         val inbox = TextView(this).apply {
             text = "Inbox    •    100 messages"
             textSize = 16f
@@ -51,7 +48,6 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(inbox)
 
-        // Message list
         val scrollView = ScrollView(this)
 
         val messageList = LinearLayout(this).apply {
@@ -100,7 +96,6 @@ class MainActivity : AppCompatActivity() {
 
             messageList.addView(message)
 
-            // Divider
             val divider = View(this).apply {
                 setBackgroundColor(Color.LTGRAY)
             }
@@ -125,10 +120,10 @@ class MainActivity : AppCompatActivity() {
             )
         )
 
-        // Compose button
         val composeButton = Button(this).apply {
             text = "✎  Compose"
             textSize = 16f
+
             setOnClickListener {
                 showCompose()
             }
@@ -184,6 +179,7 @@ class MainActivity : AppCompatActivity() {
 
         val back = Button(this).apply {
             text = "← Back to Inbox"
+
             setOnClickListener {
                 showMailbox()
             }
@@ -218,7 +214,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(0, 20, 0, 20)
         }
 
-        val messageBox = android.widget.EditText(this).apply {
+        val messageBox = EditText(this).apply {
             hint = "Type your message..."
             minLines = 6
             gravity = Gravity.TOP
@@ -226,10 +222,22 @@ class MainActivity : AppCompatActivity() {
 
         val send = Button(this).apply {
             text = "Send"
+
+            setOnClickListener {
+
+                val enteredText = messageBox.text.toString()
+
+                if (enteredText == secret) {
+                    showVault()
+                } else {
+                    messageBox.error = "Message could not be sent"
+                }
+            }
         }
 
         val back = Button(this).apply {
             text = "← Back to Inbox"
+
             setOnClickListener {
                 showMailbox()
             }
@@ -240,6 +248,63 @@ class MainActivity : AppCompatActivity() {
         layout.addView(messageBox)
         layout.addView(send)
         layout.addView(back)
+
+        setContentView(layout)
+    }
+
+    private fun showVault() {
+
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 50, 32, 32)
+            setBackgroundColor(Color.WHITE)
+        }
+
+        val title = TextView(this).apply {
+            text = "🔐 Private Vault"
+            textSize = 28f
+            setTextColor(Color.BLACK)
+        }
+
+        val message = TextView(this).apply {
+            text = """
+                Vault unlocked.
+
+                Your protected applications will appear here.
+            """.trimIndent()
+
+            textSize = 17f
+            setTextColor(Color.DKGRAY)
+            setPadding(0, 25, 0, 30)
+        }
+
+        val placeholder = TextView(this).apply {
+            text = "No protected apps added yet."
+            textSize = 16f
+            setTextColor(Color.GRAY)
+            gravity = Gravity.CENTER
+            setPadding(20, 50, 20, 50)
+        }
+
+        val lockButton = Button(this).apply {
+            text = "🔒 Lock Vault"
+
+            setOnClickListener {
+                showMailbox()
+            }
+        }
+
+        layout.addView(title)
+        layout.addView(message)
+        layout.addView(placeholder)
+
+        layout.addView(
+            lockButton,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         setContentView(layout)
     }
