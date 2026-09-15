@@ -394,51 +394,267 @@ class MainActivity : AppCompatActivity() {
 
     private fun showVault() {
 
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(32, 50, 32, 32)
-            setBackgroundColor(Color.WHITE)
-        }
+    val layout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(32, 50, 32, 32)
+        setBackgroundColor(Color.WHITE)
+    }
 
-        val title = TextView(this).apply {
-            text = "🔐 Private Vault"
-            textSize = 28f
-            setTextColor(Color.BLACK)
-        }
+    val title = TextView(this).apply {
+        text = "🔐 Private Vault"
+        textSize = 28f
+        setTextColor(Color.BLACK)
+    }
 
-        val message = TextView(this).apply {
-            text = """
-                Vault unlocked.
+    val message = TextView(this).apply {
+        text = "Select an app below to launch it."
+        textSize = 17f
+        setTextColor(Color.DKGRAY)
+        setPadding(0, 20, 0, 25)
+    }
 
-                Your protected applications will appear here.
-            """.trimIndent()
+    layout.addView(title)
+    layout.addView(message)
 
-            textSize = 17f
-            setTextColor(Color.DKGRAY)
-            setPadding(0, 25, 0, 30)
-        }
+    val appScrollView = ScrollView(this)
 
-        val placeholder = TextView(this).apply {
-            text = "No protected apps added yet."
+    val appList = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+    }
+
+    val packageManager = packageManager
+    val prefs = getSharedPreferences(
+    "vault_settings",
+    Context.MODE_PRIVATE
+)
+
+val protectedApps = prefs.getStringSet(
+    "protected_apps",
+    emptySet()
+) ?: emptySet()
+
+    val launchIntent = packageManager.getInstalledApplications(0)
+
+    val launchableApps = launchIntent
+    .filter {
+        protectedApps.contains(it.packageName)
+    }
+    .filter {
+        packageManager.getLaunchIntentForPackage(it.packageName) != null
+    }
+    .sortedBy {
+        packageManager.getApplicationLabel(it).toString()
+    }
+
+    for (appInfo in launchableApps) {
+
+        val appName = packageManager
+            .getApplicationLabel(appInfo)
+            .toString()
+
+        val appButton = Button(this).apply {
+            text = "📱 $appName"
             textSize = 16f
-            setTextColor(Color.GRAY)
-            gravity = Gravity.CENTER
-            setPadding(20, 50, 20, 50)
-        }
-
-        val lockButton = Button(this).apply {
-            text = "🔒 Lock Vault"
 
             setOnClickListener {
-                showMailbox()
+
+                val intent = packageManager
+                    .getLaunchIntentForPackage(appInfo.packageName)
+
+                if (intent != null) {
+                    startActivity(intent)
+                }
             }
         }
 
-        layout.addView(title)
-        layout.addView(message)
-        layout.addView(placeholder)
-        layout.addView(lockButton)
-
-        setContentView(layout)
+        appList.addView(
+            appButton,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 4, 0, 4)
+            }
+        )
     }
+
+    appScrollView.addView(appList)
+
+    layout.addView(
+        appScrollView,
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        )
+    )
+
+    val lockButton = Button(this).apply {
+        text = "🔒 Lock Vault"
+
+        setOnClickListener {
+            showMailbox()
+        }
+    }
+
+    layout.addView(
+        lockButton,
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            setMargins(0, 15, 0, 0)
+        }
+    )
+
+    val manageButton = Button(this).apply {
+    text = "⚙️ Manage Protected Apps"
+
+    setOnClickListener {
+        showManageApps()
+    }
+}
+
+layout.addView(
+    manageButton,
+    LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT
+    ).apply {
+        setMargins(0, 8, 0, 0)
+    }
+)
+
+    setContentView(layout)
+}
+private fun showManageApps() {
+
+    val layout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(32, 50, 32, 32)
+        setBackgroundColor(Color.WHITE)
+    }
+
+    val title = TextView(this).apply {
+        text = "⚙️ Manage Protected Apps"
+        textSize = 26f
+        setTextColor(Color.BLACK)
+    }
+
+    val message = TextView(this).apply {
+        text = "Select the apps you want to appear in your vault."
+        textSize = 16f
+        setTextColor(Color.DKGRAY)
+        setPadding(0, 15, 0, 20)
+    }
+
+    layout.addView(title)
+    layout.addView(message)
+
+    val scrollView = ScrollView(this)
+
+    val appList = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+    }
+
+    val packageManager = packageManager
+
+    val apps = packageManager
+        .getInstalledApplications(0)
+        .filter {
+            packageManager.getLaunchIntentForPackage(it.packageName) != null
+        }
+        .sortedBy {
+            packageManager.getApplicationLabel(it).toString()
+        }
+
+    val selectedApps = mutableSetOf<String>()
+
+    for (appInfo in apps) {
+
+        val packageName = appInfo.packageName
+
+        val appName = packageManager
+            .getApplicationLabel(appInfo)
+            .toString()
+
+        val checkBox = android.widget.CheckBox(this).apply {
+            text = appName
+            textSize = 16f
+            tag = packageName
+        }
+
+        checkBox.setOnCheckedChangeListener { _, isChecked ->
+
+            if (isChecked) {
+                selectedApps.add(packageName)
+            } else {
+                selectedApps.remove(packageName)
+            }
+        }
+
+        appList.addView(checkBox)
+    }
+
+    scrollView.addView(appList)
+
+    layout.addView(
+        scrollView,
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        )
+    )
+
+    val saveButton = Button(this).apply {
+        text = "💾 Save Protected Apps"
+        textSize = 16f
+
+        setOnClickListener {
+
+            val prefs = getSharedPreferences(
+                "vault_settings",
+                Context.MODE_PRIVATE
+            )
+
+            prefs.edit()
+                .putStringSet(
+                    "protected_apps",
+                    selectedApps
+                )
+                .apply()
+
+            Toast.makeText(
+                this@MainActivity,
+                "Protected apps saved",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            showVault()
+        }
+    }
+
+    layout.addView(
+        saveButton,
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            setMargins(0, 15, 0, 0)
+        }
+    )
+
+    val backButton = Button(this).apply {
+        text = "← Back to Vault"
+
+        setOnClickListener {
+            showVault()
+        }
+    }
+
+    layout.addView(backButton)
+
+    setContentView(layout)
+}
 }
