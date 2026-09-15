@@ -1,5 +1,7 @@
 package com.privatevault
 
+import android.graphics.drawable.Drawable
+import android.widget.ImageView
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
@@ -448,35 +450,68 @@ val protectedApps = prefs.getStringSet(
 
     for (appInfo in launchableApps) {
 
-        val appName = packageManager
-            .getApplicationLabel(appInfo)
-            .toString()
+    val appName = packageManager
+        .getApplicationLabel(appInfo)
+        .toString()
 
-        val appButton = Button(this).apply {
-            text = "📱 $appName"
-            textSize = 16f
+    val appRow = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        setPadding(16, 12, 16, 12)
+        setBackgroundColor(Color.WHITE)
 
-            setOnClickListener {
+        setOnClickListener {
 
-                val intent = packageManager
-                    .getLaunchIntentForPackage(appInfo.packageName)
+            val intent = packageManager
+                .getLaunchIntentForPackage(appInfo.packageName)
 
-                if (intent != null) {
-                    startActivity(intent)
-                }
+            if (intent != null) {
+                startActivity(intent)
             }
         }
+    }
 
-        appList.addView(
-            appButton,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 4, 0, 4)
-            }
+    val appIcon = ImageView(this).apply {
+        setImageDrawable(
+            packageManager.getApplicationIcon(appInfo.packageName)
         )
     }
+
+    appRow.addView(
+        appIcon,
+        LinearLayout.LayoutParams(
+            64,
+            64
+        ).apply {
+            setMargins(0, 0, 20, 0)
+        }
+    )
+
+    val appNameText = TextView(this).apply {
+        text = appName
+        textSize = 18f
+        setTextColor(Color.BLACK)
+    }
+
+    appRow.addView(
+        appNameText,
+        LinearLayout.LayoutParams(
+            0,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            1f
+        )
+    )
+
+    appList.addView(
+        appRow,
+        LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            setMargins(0, 4, 0, 4)
+        }
+    )
+}
 
     appScrollView.addView(appList)
 
